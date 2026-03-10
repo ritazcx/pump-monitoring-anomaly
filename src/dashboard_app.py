@@ -45,6 +45,8 @@ def load_data():
     return df
 
 df = load_data()
+# Show last 500 points (~8 hours)
+df_recent = df.tail(500)
 
 # ---------------------------------------------------
 # Top KPI Section
@@ -85,19 +87,21 @@ left_panel, right_panel = st.columns([3, 1])
 # ---------------------------------------------------
 # Sensor Trend Charts
 # ---------------------------------------------------
-def plot_sensor_chart(df, column, title):
+def plot_sensor_chart(df, column):
 
     fig = px.line(
         df,
         x="timestamp",
-        y=column,
-        title=title
+        y=column
     )
 
     fig.update_layout(
         height=250,
-        margin=dict(l=10, r=10, t=40, b=10)
+        margin=dict(l=10, r=10, t=10, b=10),
+        template="plotly_white"
     )
+
+    fig.update_traces(line=dict(width=2))
 
     return fig
     
@@ -109,28 +113,28 @@ with left_panel:
 
     with chart_col1:
         st.subheader("Temperature")
-        fig = plot_sensor_chart(df, "temperature", "Temperature")
+        fig = plot_sensor_chart(df_recent, "temperature")
         st.plotly_chart(fig, use_container_width=True)
 
     with chart_col2:
         st.subheader("Vibration")
-        fig = plot_sensor_chart(df, "vibration", "Vibration")
+        fig = plot_sensor_chart(df_recent, "vibration")
         st.plotly_chart(fig, use_container_width=True)
 
     chart_col3, chart_col4 = st.columns(2)
 
     with chart_col3:
         st.subheader("Pressure")
-        fig = plot_sensor_chart(df, "pressure", "Pressure")
+        fig = plot_sensor_chart(df_recent, "pressure")
         st.plotly_chart(fig, use_container_width=True)
 
     with chart_col4:
         st.subheader("Flow Rate")
-        fig = plot_sensor_chart(df, "flow_rate", "Flow Rate")
+        fig = plot_sensor_chart(df_recent, "flow_rate")
         st.plotly_chart(fig, use_container_width=True)
 
     st.subheader("Power Consumption")
-    fig = plot_sensor_chart(df, "power", "Power Consumption")
+    fig = plot_sensor_chart(df_recent, "power")
     st.plotly_chart(fig, use_container_width=True)
 
 # ---------------------------------------------------
