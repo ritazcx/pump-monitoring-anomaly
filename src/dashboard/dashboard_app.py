@@ -8,8 +8,8 @@ import os
 
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 
-from model_utils import load_data, load_model, compute_scores
-from interpretation import infer_issue, get_issue_details, detect_signal_changes
+from model_utils import load_data, load_model, compute_scores, add_issue_patterns
+from interpretation import get_issue_details, detect_signal_changes
 from ui_components import plot_sensor_chart, render_issue_panel, render_alert_table
 
 # ---------------------------------------------------
@@ -46,10 +46,19 @@ st.divider()
 # ---------------------------------------------------
 # Load Data + Score
 # ---------------------------------------------------
-df = load_data()
-mu, var, epsilon, features = load_model()
-df = compute_scores(df, features, mu, var, epsilon)
-df["issue_pattern"] = df.apply(infer_issue, axis=1)
+if "df_processed" not in st.session_state:
+
+    df = load_data()
+    mu, var, epsilon, features = load_model()
+
+    df = compute_scores(df, features, mu, var, epsilon)
+    df = add_issue_patterns(df)
+
+    st.session_state.df_processed = df
+    st.session_state.model = (mu, var, epsilon, features)
+
+df = st.session_state.df_processed
+mu, var, epsilon, features = st.session_state.model
 
 # ---------------------------------------------------
 # Slider
@@ -64,7 +73,11 @@ start_time, end_time = st.slider(
     value=(min_time.to_pydatetime(), max_time.to_pydatetime()),
 )
 
-df_window = df[(df["timestamp"] >= start_time) & (df["timestamp"] <= end_time)].copy()
+@st.cache_data
+def filter_window(df, start, end):
+    return df[(df["timestamp"] >= start) & (df["timestamp"] <= end)]
+    
+df_window = filter_window(df, start_time, end_time)
 
 if df_window.empty:
     st.warning("No data in selected window.")

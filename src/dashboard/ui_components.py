@@ -4,8 +4,10 @@ import streamlit as st
 from interpretation import get_issue_details, detect_signal_changes
 
 
+@st.cache_data
 def plot_sensor_chart(df, column):
-    fig = px.line(df, x="timestamp", y=column)
+    """Cache chart generation based on window data and column."""
+    fig = px.line(df, x="timestamp", y=column, render_mode="webgl")
 
     anomalies = df[df["anomaly_flag"]]
 

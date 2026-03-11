@@ -8,24 +8,19 @@ MODEL_PATH = "model/gaussian_model_phase3_v3.npz"
 
 
 def gaussian_anomaly_score(df, features, mu, var):
-    scores = []
-
-    for _, row in df.iterrows():
-        p = 1.0
-
-        for i, f in enumerate(features):
-            x = row[f]
-            sigma2 = var[i]
-            mu_f = mu[i]
-
-            prob = (1 / np.sqrt(2 * np.pi * sigma2)) * np.exp(
-                -((x - mu_f) ** 2) / (2 * sigma2)
-            )
-            p *= prob
-
-        scores.append(p)
-
-    return np.array(scores)
+    # Vectorized computation instead of iterrows()
+    X = df[features].values  # Shape: (n_samples, n_features)
+    
+    # Compute probability for each feature (vectorized)
+    # Shape: (n_samples, n_features)
+    probs = (1.0 / np.sqrt(2 * np.pi * var)) * np.exp(
+        -((X - mu) ** 2) / (2 * var)
+    )
+    
+    # Product across features for each sample
+    scores = np.prod(probs, axis=1)
+    
+    return scores
 
 
 @st.cache_data
@@ -60,4 +55,31 @@ def compute_scores(df, features, mu, var, epsilon):
         .astype(bool)
     )
 
+    return df
+
+
+def infer_issue_vectorized(df):
+    """Vectorized issue inference for better performance."""
+    issue = pd.Series("unknown", index=df.index)
+    
+    # bearing_wear: high vibration + high temperature
+    issue[(df["vibration"] > 2.8) & (df["temperature"] > 67)] = "bearing_wear"
+    
+    # cavitation: high vibration + pressure instability
+    issue[(df["vibration"] > 2.6) & (abs(df["pressure"] - 5) > 0.3)] = "cavitation"
+    
+    # blockage: low flow + high power
+    issue[(df["flow_rate"] < 92) & (df["power"] > 12.5)] = "blockage"
+    
+    # overheating: high temperature
+    issue[(df["temperature"] > 70) & (issue == "unknown")] = "overheating"
+    
+    return issue
+
+
+@st.cache_data
+def add_issue_patterns(df):
+    """Cache the issue pattern computation to avoid recomputation on slider changes."""
+    df = df.copy()
+    df["issue_pattern"] = infer_issue_vectorized(df)
     return df
