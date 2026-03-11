@@ -1,6 +1,16 @@
+import numpy as np
 import pandas as pd
 import plotly.express as px
 import streamlit as st
+
+import sys
+import os
+
+sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
+
+from model_utils import load_data, load_model, compute_scores
+from interpretation import infer_issue, get_issue_details, detect_signal_changes
+from ui_components import plot_sensor_chart, render_issue_panel, render_alert_table
 
 # ---------------------------------------------------
 # Page configuration
@@ -34,19 +44,33 @@ st.markdown("AI-enabled monitoring for early detection of abnormal pump behavior
 st.divider()
 
 # ---------------------------------------------------
-# Load data
+# Load Data + Score
 # ---------------------------------------------------
-DATA_PATH = "data/pump_sensor_data.csv"
-
-@st.cache_data
-def load_data():
-    df = pd.read_csv(DATA_PATH)
-    df["timestamp"] = pd.to_datetime(df["timestamp"])
-    return df
-
 df = load_data()
-# Show last 500 points (~8 hours)
-df_recent = df.tail(500)
+mu, var, epsilon, features = load_model()
+df = compute_scores(df, features, mu, var, epsilon)
+df["issue_pattern"] = df.apply(infer_issue, axis=1)
+
+# ---------------------------------------------------
+# Slider
+# ---------------------------------------------------
+min_time = df["timestamp"].min()
+max_time = df["timestamp"].max()
+
+start_time, end_time = st.slider(
+    "Time window",
+    min_value=min_time.to_pydatetime(),
+    max_value=max_time.to_pydatetime(),
+    value=(min_time.to_pydatetime(), max_time.to_pydatetime()),
+)
+
+df_window = df[(df["timestamp"] >= start_time) & (df["timestamp"] <= end_time)].copy()
+
+if df_window.empty:
+    st.warning("No data in selected window.")
+    st.stop()
+
+latest = df_window.iloc[-1]
 
 # ---------------------------------------------------
 # Top KPI Section
@@ -60,22 +84,42 @@ with col1:
     )
 
 with col2:
+    if latest["anomaly_score"] < epsilon * 0.5:
+        health_status = "CRITICAL"
+    elif latest["anomaly_flag"]:
+        health_status = "WARNING"
+    else:
+        health_status = "NORMAL"
+
     st.metric(
         label="Health Status",
-        value="WARNING"
+        value=health_status
     )
+
+    snapshot_text = (
+        f"T:{latest['temperature']:.1f}°C  |  "
+        f"V:{latest['vibration']:.2f}  |  "
+        f"P:{latest['pressure']:.2f}  |  "
+        f"F:{latest['flow_rate']:.1f}"
+    )
+
+    st.caption(f"Latest sensors → {snapshot_text}")
 
 with col3:
     st.metric(
         label="Latest Anomaly Score",
-        value="0.94"
+        value=f"{latest['anomaly_score']:.4f}"
     )
 
 with col4:
+    # st.metric(
+    #     label="Last Update",
+    #     value=latest["timestamp"].strftime("%H:%M")
+    # )
+    num_anomalies = int(df_window["anomaly_flag"].sum())
     st.metric(
-        label="Last Update",
-        value="17:00"
-    )
+        "Anomalies in Window", 
+        num_anomalies)
 
 st.divider()
 
@@ -87,24 +131,6 @@ left_panel, right_panel = st.columns([3, 1])
 # ---------------------------------------------------
 # Sensor Trend Charts
 # ---------------------------------------------------
-def plot_sensor_chart(df, column):
-
-    fig = px.line(
-        df,
-        x="timestamp",
-        y=column
-    )
-
-    fig.update_layout(
-        height=250,
-        margin=dict(l=10, r=10, t=10, b=10),
-        template="plotly_white"
-    )
-
-    fig.update_traces(line=dict(width=2))
-
-    return fig
-    
 with left_panel:
 
     st.subheader("Sensor Trends")
@@ -113,63 +139,33 @@ with left_panel:
 
     with chart_col1:
         st.subheader("Temperature")
-        fig = plot_sensor_chart(df_recent, "temperature")
-        st.plotly_chart(fig, use_container_width=True)
+        st.plotly_chart(plot_sensor_chart(df_window, "temperature"), use_container_width=True)
 
     with chart_col2:
         st.subheader("Vibration")
-        fig = plot_sensor_chart(df_recent, "vibration")
-        st.plotly_chart(fig, use_container_width=True)
+        st.plotly_chart(plot_sensor_chart(df_window, "vibration"), use_container_width=True)
 
     chart_col3, chart_col4 = st.columns(2)
 
     with chart_col3:
         st.subheader("Pressure")
-        fig = plot_sensor_chart(df_recent, "pressure")
-        st.plotly_chart(fig, use_container_width=True)
+        st.plotly_chart(plot_sensor_chart(df_window, "pressure"), use_container_width=True)
 
     with chart_col4:
         st.subheader("Flow Rate")
-        fig = plot_sensor_chart(df_recent, "flow_rate")
-        st.plotly_chart(fig, use_container_width=True)
+        st.plotly_chart(plot_sensor_chart(df_window, "flow_rate"), use_container_width=True)
 
     st.subheader("Power Consumption")
-    fig = plot_sensor_chart(df_recent, "power")
-    st.plotly_chart(fig, use_container_width=True)
+    st.plotly_chart(plot_sensor_chart(df_window, "power"), use_container_width=True)
 
 # ---------------------------------------------------
 # Issue Interpretation Panel
 # ---------------------------------------------------
 with right_panel:
-
-    st.subheader("Issue Interpretation")
-
-    st.warning("Detected Pattern: Possible Cavitation")
-
-    st.markdown("""
-**Signal progression**
-
-- Pressure drop detected  
-- Flow rate declined  
-- Vibration increased  
-- Temperature rising
-""")
-
-    st.markdown("""
-**Recommended actions**
-
-1. Reduce pump speed  
-2. Inspect inlet valve  
-3. Verify suction conditions
-""")
-
-    st.error("Urgency: Escalate to maintenance within 2 hours")
-
-st.divider()
+    render_issue_panel(latest, df_window)
 
 # ---------------------------------------------------
 # Recent Alerts Table
 # ---------------------------------------------------
-st.subheader("Recent Alerts")
-
-st.write("Alerts table placeholder")
+st.divider()
+render_alert_table(df_window)

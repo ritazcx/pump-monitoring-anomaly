@@ -8,7 +8,7 @@ from feature_engineering import add_engineered_features
 # -----------------------------
 project_root = Path(__file__).resolve().parent.parent
 input_file = project_root / "data" / "pump_sensor_data.csv"
-model_file = project_root / "data" / "gaussian_model_phase3_v3.npz"
+model_file = project_root / "model" / "gaussian_model_phase3_v3.npz"
 
 # -----------------------------
 # 2. Configuration

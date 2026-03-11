@@ -9,7 +9,7 @@ from feature_engineering import add_engineered_features
 # -----------------------------
 project_root = Path(__file__).resolve().parent.parent
 input_file = project_root / "data" / "pump_sensor_data.csv"
-model_file = project_root / "data" / "gaussian_model_phase3_v3.npz"
+model_file = project_root / "model" / "gaussian_model_phase3_v3.npz"
 
 # -----------------------------
 # 2. Gaussian probability function
@@ -132,6 +132,15 @@ epsilon, best_cv_f1 = select_epsilon(y_cv, p_cv)
 
 print(f"\nSelected epsilon from CV: {epsilon:.12e}")
 print(f"Best CV F1: {best_cv_f1:.4f}")
+
+# write epsilon to model
+np.savez(
+    model_file,
+    mu=mu,
+    var=var,
+    epsilon=epsilon,
+    feature_cols=np.array(feature_cols)
+)
 
 # -----------------------------
 # 11. CV metrics
