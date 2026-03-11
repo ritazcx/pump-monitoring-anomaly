@@ -59,21 +59,39 @@ def compute_scores(df, features, mu, var, epsilon):
 
 
 def infer_issue_vectorized(df):
-    """Vectorized issue inference for better performance."""
+    """Vectorized issue inference for better performance.
+
+    Thresholds are aligned with the injected anomaly profiles.  Rules are
+    applied sequentially and only overwrite rows that are still "unknown",
+    preventing later rules from clobbering earlier matches.
+    """
     issue = pd.Series("unknown", index=df.index)
-    
-    # bearing_wear: high vibration + high temperature
-    issue[(df["vibration"] > 2.8) & (df["temperature"] > 67)] = "bearing_wear"
-    
-    # cavitation: high vibration + pressure instability
-    issue[(df["vibration"] > 2.6) & (abs(df["pressure"] - 5) > 0.3)] = "cavitation"
-    
-    # blockage: low flow + high power
-    issue[(df["flow_rate"] < 92) & (df["power"] > 12.5)] = "blockage"
-    
-    # overheating: high temperature
-    issue[(df["temperature"] > 70) & (issue == "unknown")] = "overheating"
-    
+
+    # 1. bearing_wear: strong vibration rise + temperature increase
+    #    injection peaks: vibration ≈3.35, temperature ≈68.7
+    mask = (df["vibration"] > 3.0) & (df["temperature"] > 67.5)
+    issue.loc[mask] = "bearing_wear"
+
+    # 2. cavitation: moderate vibration spike and pressure oscillation ±0.1
+    mask = (
+        (issue == "unknown")
+        & (df["vibration"] > 2.6)
+        & (df["pressure"].sub(5.0).abs() > 0.10)
+    )
+    issue.loc[mask] = "cavitation"
+
+    # 3. blockage: flow drops below normal min and power edges upward
+    mask = (
+        (issue == "unknown")
+        & (df["flow_rate"] < 90)
+        & (df["power"] > 12.4)
+    )
+    issue.loc[mask] = "blockage"
+
+    # 4. overheating: temperature climbs above 70 (only if still unknown)
+    mask = (issue == "unknown") & (df["temperature"] > 70)
+    issue.loc[mask] = "overheating"
+
     return issue
 
 

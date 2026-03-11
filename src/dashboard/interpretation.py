@@ -1,19 +1,3 @@
-def infer_issue(row):
-    if row["vibration"] > 2.8 and row["temperature"] > 67:
-        return "bearing_wear"
-
-    if row["vibration"] > 2.6 and abs(row["pressure"] - 5) > 0.3:
-        return "cavitation"
-
-    if row["flow_rate"] < 92 and row["power"] > 12.5:
-        return "blockage"
-
-    if row["temperature"] > 70:
-        return "overheating"
-
-    return "unknown"
-
-
 def get_issue_details(issue_pattern):
     issue_map = {
         "bearing_wear": {
