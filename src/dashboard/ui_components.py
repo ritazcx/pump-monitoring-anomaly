@@ -29,46 +29,84 @@ def plot_sensor_chart(df, column):
     return fig
 
 
-def render_issue_panel(df_window, current_episode):
+def render_issue_panel(df_window, episodes_df, displayed_episode):
     st.subheader("Issue Interpretation")
 
-    anomaly_rows = df_window.loc[df_window["anomaly_flag"]]
+    if displayed_episode is None:
+        st.info("No known issue pattern detected in selected window.")
+        return
 
-    if not anomaly_rows.empty:
-        pattern_df = (
-            anomaly_rows["issue_pattern"]
-            .value_counts()
-            .rename_axis("issue_pattern")
-            .reset_index(name="count")
-        )
-        st.dataframe(pattern_df, use_container_width=True, hide_index=True)
+    detected_issue = displayed_episode["dominant_pattern"]
+    info = get_issue_details(detected_issue)
 
-    if current_episode is None:
-        info = get_issue_details("normal")
-        st.success("No persistent abnormal condition detected in selected window.")
-    else:
-        detected_issue = current_episode["dominant_pattern"]
-        info = get_issue_details(detected_issue)
+    status = str(displayed_episode["status"]).title()
+    start_time = pd.to_datetime(displayed_episode["start_time"])
+    end_time = pd.to_datetime(displayed_episode["end_time"])
+    duration = int(displayed_episode["duration_min"])
 
-        status = str(current_episode["status"]).title()
-        start_time = pd.to_datetime(current_episode["start_time"]).strftime("%Y-%m-%d %H:%M")
-        end_time = pd.to_datetime(current_episode["end_time"]).strftime("%Y-%m-%d %H:%M")
-        duration = int(current_episode["duration_min"])
+    st.error(f"Detected Pattern: {detected_issue.replace('_', ' ').title()}")
+    st.markdown(f"**Episode status:** {status}")
+    st.markdown(f"**Start time:** {start_time.strftime('%Y-%m-%d %H:%M')}")
+    st.markdown(f"**End time:** {end_time.strftime('%Y-%m-%d %H:%M')}")
+    st.markdown(f"**Duration:** {duration} min")
 
-        st.error(f"Detected Pattern: {detected_issue.replace('_', ' ').title()}")
-        st.markdown(f"**Episode status:** {status}")
-        st.markdown(f"**Start time:** {start_time}")
-        st.markdown(f"**End time:** {end_time}")
-        st.markdown(f"**Duration:** {duration} min")
+    st.markdown("**Explanation**")
+    st.write(info["description"])
 
-        st.markdown("**Explanation**")
-        st.write(info["description"])
+    # Signal progression window:
+    # from earliest start to latest end across all episodes
+    # with the same known dominant pattern
+    same_pattern_episodes = episodes_df[
+        episodes_df["dominant_pattern"] == detected_issue
+    ]
 
-    changes = detect_signal_changes(df_window)
+    progression_start = pd.to_datetime(same_pattern_episodes["start_time"].min())
+    progression_end = pd.to_datetime(same_pattern_episodes["end_time"].max())
+
+    progression_df = df_window[
+        (df_window["timestamp"] >= progression_start) &
+        (df_window["timestamp"] <= progression_end)
+    ].copy()
+
+    changes = detect_signal_changes(progression_df, pattern=detected_issue)
+
+    st.markdown("**Signal Progression**")
+
     if changes:
-        st.markdown("**Signal progression**")
         for change in changes:
-            st.write(f"- {change}")
+            if "—" in change:
+                ts, message = change.split("—", 1)
+                ts = ts.strip()
+                message = message.strip()
+            else:
+                ts = ""
+                message = change
+
+            st.markdown(
+                f"""
+                <div style="
+                    border-left: 3px solid #d1d5db;
+                    padding: 0.45rem 0.75rem;
+                    margin-bottom: 0.5rem;
+                    background-color: #f8f9fb;
+                    border-radius: 0.4rem;
+                ">
+                    <div style="
+                        font-size: 0.78rem;
+                        color: #6b7280;
+                        margin-bottom: 0.15rem;
+                    ">{ts}</div>
+                    <div style="
+                        font-size: 0.95rem;
+                        color: #111827;
+                        line-height: 1.4;
+                    ">{message}</div>
+                </div>
+                """,
+                unsafe_allow_html=True,
+            )
+    else:
+        st.caption("No significant signal progression detected for this pattern window.")
 
     st.markdown("**Recommended action**")
     st.write(info["action"])

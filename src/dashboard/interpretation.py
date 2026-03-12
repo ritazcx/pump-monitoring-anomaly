@@ -29,28 +29,64 @@ def get_issue_details(issue_pattern):
     return issue_map.get(issue_pattern, issue_map["unknown"])
 
 
-def detect_signal_changes(df_window):
-    if len(df_window) < 5:
+def detect_signal_changes(df_window, pattern=None):
+    """
+    Detect signal progression with timestamps.
+    """
+    if df_window.empty or len(df_window) < 3:
         return []
-
-    latest = df_window.iloc[-1]
-    prev = df_window.iloc[-5]
 
     changes = []
 
-    if latest["temperature"] > prev["temperature"] + 1.0:
-        changes.append("Temperature rising")
+    df = df_window.sort_values("timestamp").reset_index(drop=True)
 
-    if latest["vibration"] > prev["vibration"] + 0.2:
-        changes.append("Vibration increasing")
+    base = df.iloc[0]
 
-    if latest["flow_rate"] < prev["flow_rate"] - 3.0:
-        changes.append("Flow decreasing")
+    for i in range(1, len(df)):
+        row = df.iloc[i]
+        ts = row["timestamp"].strftime("%Y-%m-%d %H:%M")
 
-    if latest["pressure"] < prev["pressure"] - 0.2:
-        changes.append("Pressure dropping")
+        vib_delta = row["vibration"] - base["vibration"]
+        pressure_delta = row["pressure"] - base["pressure"]
+        flow_delta = row["flow_rate"] - base["flow_rate"]
+        power_delta = row["power"] - base["power"]
 
-    if latest["power"] > prev["power"] + 0.4:
-        changes.append("Power increasing")
+        if pattern == "cavitation":
+            if vib_delta > 0.2:
+                changes.append(
+                    f"{ts} — Vibration increased, consistent with cavitation onset."
+                )
+                break
+
+            if pressure_delta < -0.05:
+                changes.append(
+                    f"{ts} — Pressure dropped during the cavitation pattern window."
+                )
+                break
+
+        elif pattern == "blockage":
+            if flow_delta < -3:
+                changes.append(
+                    f"{ts} — Flow rate began decreasing."
+                )
+
+            if power_delta > 0.2:
+                changes.append(
+                    f"{ts} — Power consumption increased while flow decreased."
+                )
+                break
+
+            if pressure_delta > 0.03:
+                changes.append(
+                    f"{ts} — Pressure started rising slightly."
+                )
+                break
+
+        elif pattern == "bearing_wear":
+            if vib_delta > 0.2:
+                changes.append(
+                    f"{ts} — Vibration increased progressively."
+                )
+                break
 
     return changes

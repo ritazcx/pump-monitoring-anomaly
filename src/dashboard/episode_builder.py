@@ -98,7 +98,7 @@ def build_condition_episodes(
 
         # Active if the latest anomaly point is close enough to the overall latest timestamp
         minutes_since_end = (latest_timestamp - end_time).total_seconds() / 60
-        status = "active" if minutes_since_end <= gap_minutes else "cleared"
+        status = "active" if minutes_since_end <= gap_minutes else "ended"
 
         episode_rows.append(
             {

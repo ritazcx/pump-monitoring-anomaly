@@ -85,14 +85,12 @@ latest = df_window.iloc[-1]
 
 episodes_df = build_condition_episodes(df_window, gap_minutes=5)
 
-active_episodes = episodes_df[episodes_df["status"] == "active"]
+known_episodes = episodes_df[episodes_df["dominant_pattern"] != "unknown"]
 
-if not active_episodes.empty:
-    current_episode = active_episodes.iloc[0]   # newest active episode
-elif not episodes_df.empty:
-    current_episode = episodes_df.iloc[0]       # most recent cleared episode
+if not known_episodes.empty:
+    displayed_episode = known_episodes.iloc[0]   # most recent known episode
 else:
-    current_episode = None
+    displayed_episode = None
 
 st.subheader("Condition Episodes")
 st.dataframe(episodes_df, use_container_width=True)
@@ -109,11 +107,10 @@ with col1:
     )
 
 with col2:
-    if current_episode is not None:
-        if current_episode["status"] == "active":
-            health_status = "WARNING"
-        else:
-            health_status = "ATTENTION"
+    active_episode_count = int((episodes_df["status"] == "active").sum())
+
+    if active_episode_count > 0:
+        health_status = "WARNING"
     else:
         health_status = "NORMAL"
 
@@ -198,7 +195,7 @@ with left_panel:
 # Issue Interpretation Panel
 # ---------------------------------------------------
 with right_panel:
-    render_issue_panel(df_window, current_episode)
+    render_issue_panel(df_window, episodes_df, displayed_episode)
 
 # ---------------------------------------------------
 # Recent Alerts Table
