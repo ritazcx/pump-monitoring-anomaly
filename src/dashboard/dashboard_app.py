@@ -8,6 +8,7 @@ sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 from model_utils import load_data, load_model, compute_scores, add_issue_patterns
 from interpretation import get_issue_details, detect_signal_changes
 from ui_components import plot_sensor_chart, render_issue_panel, render_alert_table
+from episode_builder import build_condition_episodes
 
 # ---------------------------------------------------
 # Page configuration
@@ -82,6 +83,20 @@ if df_window.empty:
 
 latest = df_window.iloc[-1]
 
+episodes_df = build_condition_episodes(df_window, gap_minutes=5)
+
+active_episodes = episodes_df[episodes_df["status"] == "active"]
+
+if not active_episodes.empty:
+    current_episode = active_episodes.iloc[0]   # newest active episode
+elif not episodes_df.empty:
+    current_episode = episodes_df.iloc[0]       # most recent cleared episode
+else:
+    current_episode = None
+
+st.subheader("Condition Episodes")
+st.dataframe(episodes_df, use_container_width=True)
+
 # ---------------------------------------------------
 # Top KPI Section
 # ---------------------------------------------------
@@ -94,10 +109,11 @@ with col1:
     )
 
 with col2:
-    if latest["anomaly_score"] < epsilon * 0.5:
-        health_status = "CRITICAL"
-    elif latest["anomaly_flag"]:
-        health_status = "WARNING"
+    if current_episode is not None:
+        if current_episode["status"] == "active":
+            health_status = "WARNING"
+        else:
+            health_status = "ATTENTION"
     else:
         health_status = "NORMAL"
 
@@ -126,10 +142,20 @@ with col4:
     #     label="Last Update",
     #     value=latest["timestamp"].strftime("%H:%M")
     # )
+    # num_anomalies = int(df_window["anomaly_flag"].sum())
+    # st.metric(
+    #     "Anomalies in Window", 
+    #     num_anomalies)
+
+    active_episode_count = int((episodes_df["status"] == "active").sum())
     num_anomalies = int(df_window["anomaly_flag"].sum())
+
     st.metric(
-        "Anomalies in Window", 
-        num_anomalies)
+        label="Active Episodes",
+        value=active_episode_count
+    )
+
+    st.caption(f"Transient deviations / anomaly points: {num_anomalies}")
 
 st.divider()
 
@@ -172,14 +198,7 @@ with left_panel:
 # Issue Interpretation Panel
 # ---------------------------------------------------
 with right_panel:
-    recent_anomalies = df_window[df_window["anomaly_flag"]]
-
-    if not recent_anomalies.empty:
-        latest = recent_anomalies.iloc[-1]
-    else:
-        latest = df_window.iloc[-1]
-
-    render_issue_panel(latest, df_window)
+    render_issue_panel(df_window, current_episode)
 
 # ---------------------------------------------------
 # Recent Alerts Table

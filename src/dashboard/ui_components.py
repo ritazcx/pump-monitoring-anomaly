@@ -1,5 +1,6 @@
 import plotly.express as px
 import streamlit as st
+import pandas as pd
 
 from interpretation import get_issue_details, detect_signal_changes
 
@@ -28,28 +29,39 @@ def plot_sensor_chart(df, column):
     return fig
 
 
-def render_issue_panel(latest, df_window):
+def render_issue_panel(df_window, current_episode):
     st.subheader("Issue Interpretation")
 
     anomaly_rows = df_window.loc[df_window["anomaly_flag"]]
-    pattern_counts = anomaly_rows["issue_pattern"].value_counts()
-    
-    st.write(pattern_counts)
 
-    if anomaly_rows.empty:
-        st.info("No abnormal pattern detected in selected window.")
+    if not anomaly_rows.empty:
+        pattern_df = (
+            anomaly_rows["issue_pattern"]
+            .value_counts()
+            .rename_axis("issue_pattern")
+            .reset_index(name="count")
+        )
+        st.dataframe(pattern_df, use_container_width=True, hide_index=True)
+
+    if current_episode is None:
         info = get_issue_details("normal")
+        st.success("No persistent abnormal condition detected in selected window.")
     else:
-        known_patterns = pattern_counts.drop("unknown", errors="ignore")
-        if not known_patterns.empty:
-            detected_issue = known_patterns.index[0]
-        else:
-            detected_issue = anomaly_rows.iloc[-1]["issue_pattern"]
-
+        detected_issue = current_episode["dominant_pattern"]
         info = get_issue_details(detected_issue)
 
+        status = str(current_episode["status"]).title()
+        start_time = pd.to_datetime(current_episode["start_time"]).strftime("%Y-%m-%d %H:%M")
+        end_time = pd.to_datetime(current_episode["end_time"]).strftime("%Y-%m-%d %H:%M")
+        duration = int(current_episode["duration_min"])
+
         st.error(f"Detected Pattern: {detected_issue.replace('_', ' ').title()}")
-        st.write("Explanation:")
+        st.markdown(f"**Episode status:** {status}")
+        st.markdown(f"**Start time:** {start_time}")
+        st.markdown(f"**End time:** {end_time}")
+        st.markdown(f"**Duration:** {duration} min")
+
+        st.markdown("**Explanation**")
         st.write(info["description"])
 
     changes = detect_signal_changes(df_window)
