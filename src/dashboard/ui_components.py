@@ -31,15 +31,26 @@ def plot_sensor_chart(df, column):
 def render_issue_panel(latest, df_window):
     st.subheader("Issue Interpretation")
 
-    latest_issue = latest["issue_pattern"]
-    info = get_issue_details(latest_issue)
+    anomaly_rows = df_window.loc[df_window["anomaly_flag"]]
+    pattern_counts = anomaly_rows["issue_pattern"].value_counts()
+    
+    st.write(pattern_counts)
 
-    if latest["anomaly_flag"]:
-        st.error(f"Detected Pattern: {latest_issue.replace('_', ' ').title()}")
+    if anomaly_rows.empty:
+        st.info("No abnormal pattern detected in selected window.")
+        info = get_issue_details("normal")
+    else:
+        known_patterns = pattern_counts.drop("unknown", errors="ignore")
+        if not known_patterns.empty:
+            detected_issue = known_patterns.index[0]
+        else:
+            detected_issue = anomaly_rows.iloc[-1]["issue_pattern"]
+
+        info = get_issue_details(detected_issue)
+
+        st.error(f"Detected Pattern: {detected_issue.replace('_', ' ').title()}")
         st.write("Explanation:")
         st.write(info["description"])
-    else:
-        st.success("No abnormal pattern detected in selected window.")
 
     changes = detect_signal_changes(df_window)
     if changes:

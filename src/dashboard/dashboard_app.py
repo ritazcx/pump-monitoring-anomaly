@@ -172,6 +172,13 @@ with left_panel:
 # Issue Interpretation Panel
 # ---------------------------------------------------
 with right_panel:
+    recent_anomalies = df_window[df_window["anomaly_flag"]]
+
+    if not recent_anomalies.empty:
+        latest = recent_anomalies.iloc[-1]
+    else:
+        latest = df_window.iloc[-1]
+
     render_issue_panel(latest, df_window)
 
 # ---------------------------------------------------
