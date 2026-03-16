@@ -3,12 +3,14 @@ import streamlit as st
 import sys
 import os
 
+# Ensure the repository root (src/) is on the import path so package-style imports work
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 
-from model_utils import load_data, load_model, compute_scores, add_issue_patterns
-from interpretation import get_issue_details, detect_signal_changes
-from ui_components import plot_sensor_chart, render_issue_panel, render_alert_table
-from episode_builder import build_condition_episodes
+from analytics.model_utils import load_data, load_model, compute_scores, add_issue_patterns
+from monitoring.health_scoring import compute_health_score, categorize_health_state
+from monitoring.interpretation import get_issue_details, detect_signal_changes
+from app.ui_components import plot_sensor_chart, render_issue_panel, render_alert_table
+from monitoring.episode_builder import build_condition_episodes
 
 # ---------------------------------------------------
 # Page configuration
@@ -107,16 +109,13 @@ with col1:
     )
 
 with col2:
-    active_episode_count = int((episodes_df["status"] == "active").sum())
-
-    if active_episode_count > 0:
-        health_status = "WARNING"
-    else:
-        health_status = "NORMAL"
+    health_score = compute_health_score(df_window)
+    health_state = categorize_health_state(health_score).upper()
 
     st.metric(
         label="Health Status",
-        value=health_status
+        value=health_state,
+        delta=f"{health_score:.2f}"
     )
 
     snapshot_text = (

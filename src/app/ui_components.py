@@ -2,7 +2,7 @@ import plotly.express as px
 import streamlit as st
 import pandas as pd
 
-from interpretation import get_issue_details, detect_signal_changes
+from monitoring.interpretation import get_issue_details, detect_signal_changes
 
 
 @st.cache_data

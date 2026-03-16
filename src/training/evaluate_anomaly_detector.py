@@ -2,27 +2,19 @@ from pathlib import Path
 import numpy as np
 import pandas as pd
 from sklearn.metrics import precision_score, recall_score, f1_score, confusion_matrix
-from feature_engineering import add_engineered_features
+
+from common.paths import DATA_RAW_DIR, MODELS_DIR, RAW_SENSOR_FILE
+from pipeline.feature_engineering import add_engineered_features
+from analytics.anomaly_detection import gaussian_density
 
 # -----------------------------
 # 1. Paths
 # -----------------------------
-project_root = Path(__file__).resolve().parent.parent
-input_file = project_root / "data" / "pump_sensor_data.csv"
-model_file = project_root / "model" / "gaussian_model_phase3_v3.npz"
+input_file = DATA_RAW_DIR / RAW_SENSOR_FILE
+model_file = MODELS_DIR / "gaussian_model_phase3_v3.npz"
 
 # -----------------------------
-# 2. Gaussian probability function
-# -----------------------------
-def gaussian_density(X, mu, var):
-    coeff = 1 / np.sqrt(2 * np.pi * var)
-    exp_term = np.exp(-((X - mu) ** 2) / (2 * var))
-    p_per_feature = coeff * exp_term
-    p_total = np.prod(p_per_feature, axis=1)
-    return p_total
-
-# -----------------------------
-# 3. Select epsilon on CV
+# 2. Select epsilon on CV
 # -----------------------------
 def select_epsilon(y_true, p_val):
     best_epsilon = None

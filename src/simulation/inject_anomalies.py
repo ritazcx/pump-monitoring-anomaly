@@ -1,13 +1,13 @@
-from pathlib import Path
 import numpy as np
 import pandas as pd
+
+from common.paths import DATA_RAW_DIR, NORMAL_SENSOR_FILE, RAW_SENSOR_FILE
 
 # -----------------------------
 # 1. Paths
 # -----------------------------
-project_root = Path(__file__).resolve().parent.parent
-input_file = project_root / "data" / "pump_sensor_data_normal.csv"
-output_file = project_root / "data" / "pump_sensor_data.csv"
+input_file = DATA_RAW_DIR / NORMAL_SENSOR_FILE
+output_file = DATA_RAW_DIR / RAW_SENSOR_FILE
 
 # -----------------------------
 # 2. Read normal baseline data

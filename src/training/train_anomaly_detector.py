@@ -1,14 +1,15 @@
 from pathlib import Path
 import numpy as np
 import pandas as pd
-from feature_engineering import add_engineered_features
+
+from common.paths import DATA_RAW_DIR, MODELS_DIR, RAW_SENSOR_FILE
+from pipeline.feature_engineering import add_engineered_features
 
 # -----------------------------
 # 1. Paths
 # -----------------------------
-project_root = Path(__file__).resolve().parent.parent
-input_file = project_root / "data" / "pump_sensor_data.csv"
-model_file = project_root / "model" / "gaussian_model_phase3_v3.npz"
+input_file = DATA_RAW_DIR / RAW_SENSOR_FILE
+model_file = MODELS_DIR / "gaussian_model_phase3_v3.npz"
 
 # -----------------------------
 # 2. Configuration

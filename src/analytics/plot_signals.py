@@ -1,14 +1,14 @@
-from pathlib import Path
 import matplotlib.pyplot as plt
 import pandas as pd
+
+from common.paths import DATA_PROCESSED_DIR, DATA_RAW_DIR, RAW_SENSOR_FILE
 
 # -----------------------------
 # 1. Choose input file here
 # -----------------------------
-project_root = Path(__file__).resolve().parent.parent
-
-# file_path = project_root / "data" / "pump_sensor_data_normal.csv"
-file_path = project_root / "data" / "pump_sensor_data.csv"
+processed_path = DATA_PROCESSED_DIR / RAW_SENSOR_FILE
+raw_path = DATA_RAW_DIR / RAW_SENSOR_FILE
+file_path = processed_path if processed_path.exists() else raw_path
 
 # -----------------------------
 # 2. Read data

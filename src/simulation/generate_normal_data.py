@@ -1,6 +1,7 @@
-from pathlib import Path
 import numpy as np
 import pandas as pd
+
+from common.paths import DATA_RAW_DIR, NORMAL_SENSOR_FILE
 
 # -----------------------------
 # 1. Reproducibility
@@ -14,8 +15,7 @@ n_rows = 5000
 pump_id = "P-101"
 start_time = "2026-01-01 00:00:00"
 
-project_root = Path(__file__).resolve().parent.parent
-output_file = project_root / "data" / "pump_sensor_data_normal.csv"
+output_file = DATA_RAW_DIR / NORMAL_SENSOR_FILE
 
 # Create timestamp column (1-minute interval)
 timestamps = pd.date_range(start=start_time, periods=n_rows, freq="min")
